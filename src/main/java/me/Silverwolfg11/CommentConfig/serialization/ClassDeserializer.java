@@ -21,7 +21,7 @@ import java.util.Map;
 public class ClassDeserializer {
 
     private final Yaml yaml;
-    private Map<Class<?>, SerializableObject> deserializers;
+    private Map<Class<?>, DeserializableObject> deserializers;
 
     public ClassDeserializer() {
         final DumperOptions options = new DumperOptions();
@@ -30,7 +30,7 @@ public class ClassDeserializer {
         this.yaml = new Yaml(options);
     }
 
-    public void addDeserializer(Class<?> clazz, SerializableObject deserializable) {
+    public void addDeserializer(Class<?> clazz, DeserializableObject deserializable) {
         if (deserializers == null)
             deserializers = new HashMap<>();
 
@@ -118,7 +118,8 @@ public class ClassDeserializer {
                     if (deserializers != null && deserializers.containsKey(fieldType)) {
                         fieldObject = deserializers.get(fieldType).deserializeObject(fieldObject);
                     }
-                    else {
+
+                    if (!fieldType.isInstance(fieldObject)) {
                         System.out.println("Type mismatch on field " + field.getName() + "!");
                         System.out.println("Expected field type: " + field.getType().getName() + ". Object type found: " + fieldObject.getClass().getName());
                         continue;
