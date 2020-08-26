@@ -8,6 +8,13 @@ import me.Silverwolfg11.CommentConfig.node.ValueConfigNode;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.representer.Represent;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -45,6 +52,19 @@ public class NodeSerializer {
         }
 
         return dump;
+    }
+
+
+    public void serializeToFile(File file, ConfigNode node) throws IOException {
+        if (!file.exists()) {
+            throw new FileNotFoundException("File does not exist!");
+        }
+
+        String producedYAML = serializeToString(node);
+
+        try (Writer writer = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
+            writer.write(producedYAML);
+        }
     }
 
     private void serializeToCommentMap(ConfigNode node, Map<CommentKey, Object> parentMap) {
