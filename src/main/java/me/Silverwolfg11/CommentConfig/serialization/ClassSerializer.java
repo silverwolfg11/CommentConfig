@@ -3,6 +3,7 @@ package me.Silverwolfg11.CommentConfig.serialization;
 import me.Silverwolfg11.CommentConfig.annotations.Comment;
 import me.Silverwolfg11.CommentConfig.annotations.Node;
 import me.Silverwolfg11.CommentConfig.annotations.SerializableConfig;
+import me.Silverwolfg11.CommentConfig.annotations.SnakeSerialize;
 import me.Silverwolfg11.CommentConfig.node.ConfigNode;
 import me.Silverwolfg11.CommentConfig.node.ParentConfigNode;
 
@@ -55,6 +56,14 @@ public class ClassSerializer {
             // If the field value is null do not add it to the node
             if (fieldValue == null)
                 continue;
+
+            // Handle custom serialization
+            if (!field.isAnnotationPresent(SnakeSerialize.class)) {
+                // Convert enums to strings otherwise SnakeYAML will serialize the enum class too which looks ugly
+                if (fieldValue.getClass().isEnum()) {
+                    fieldValue = ((Enum) fieldValue).name();
+                }
+            }
 
             ParentConfigNode currParent;
             String childName;
