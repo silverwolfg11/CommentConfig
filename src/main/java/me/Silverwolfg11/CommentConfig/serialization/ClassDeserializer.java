@@ -65,10 +65,6 @@ public class ClassDeserializer {
         try {
             objInstance = clazz.newInstance();
         } catch (ReflectiveOperationException e) {
-            for (Constructor<?> declaredConstructor : clazz.getDeclaredConstructors()) {
-                System.out.println("Constructor: " + declaredConstructor);
-            }
-
             e.printStackTrace();
             return null;
         }
@@ -77,8 +73,6 @@ public class ClassDeserializer {
     }
 
     private <T> T deserializeClass(Map<String, Object> objectMap, Class<T> clazz, T objInstance) {
-        System.out.println("Deserializing Class " + clazz.getName());
-
         for (Field field : clazz.getDeclaredFields()) {
             // Skip compiler generated or transient fields
             if (field.isSynthetic() || Modifier.isTransient(field.getModifiers()))
@@ -125,8 +119,8 @@ public class ClassDeserializer {
                         fieldObject = deserializers.get(fieldType).deserializeObject(fieldObject);
                     }
                     else {
-                        System.out.println("Mismatch on field " + field.getName() + "!!!");
-                        System.out.println("FIeld Type: " + field.getType().getName() + ". Object Type: " + fieldObject.getClass().getName());
+                        System.out.println("Type mismatch on field " + field.getName() + "!");
+                        System.out.println("Expected field type: " + field.getType().getName() + ". Object type found: " + fieldObject.getClass().getName());
                         continue;
                     }
                 }
@@ -169,14 +163,14 @@ public class ClassDeserializer {
 
     private Object convertListToArray(Object object) {
         if (!(object instanceof List))
-            throw new RuntimeException("Not a list!!!");
+            throw new RuntimeException("Not a list!");
 
         return ((List) object).toArray();
     }
 
     private Object convertListToPrimitiveArray(Object object, Class<?> type) {
         if (!(object instanceof List))
-            throw new RuntimeException("Not a list!!!");
+            throw new RuntimeException("Not a list!");
 
         List objList = (List) object;
 
