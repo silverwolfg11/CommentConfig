@@ -17,11 +17,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 public class ClassDeserializer {
 
     private final Yaml yaml;
     private Map<Class<?>, DeserializableObject> deserializers;
+    private Logger errorLogger;
 
     public ClassDeserializer() {
         final DumperOptions options = new DumperOptions();
@@ -35,6 +37,10 @@ public class ClassDeserializer {
             deserializers = new HashMap<>();
 
         deserializers.put(clazz, deserializable);
+    }
+
+    public void setErrorLogger(Logger logger) {
+        this.errorLogger = logger;
     }
 
     private void validateSerializable(Class<?> clazz) {
@@ -86,16 +92,23 @@ public class ClassDeserializer {
 
             Class<?> fieldType = field.getType();
 
-            if (fieldType.isArray()) {
+            if (deserializers != null && deserializers.containsKey(fieldType)) {
+                fieldObject = deserializers.get(fieldType).deserializeObject(fieldObject);
+            }
+
+            if (fieldType.isArray() && fieldObject instanceof List) {
                 // Since the field is an array, and YAML loads all iterables as lists,
                 // we will have to convert it to an array.
                 Class<?> pType = fieldType.getComponentType();;
-
-                if (pType.isPrimitive()) {
-                    fieldObject = convertListToPrimitiveArray(fieldObject, pType);
-                }
-                else {
-                    fieldObject = convertListToArray(fieldObject);
+                fieldObject = convertListToArray(pType, fieldObject);
+            }
+            else if (fieldType.isEnum() && fieldObject instanceof String) {
+                try {
+                    Class<? extends Enum> enumClass = (Class<? extends Enum>) fieldType;
+                    fieldObject = Enum.valueOf(enumClass, (String) fieldObject);
+                } catch (IllegalArgumentException ex) {
+                    displayError("Could not convert `" + fieldObject + "` to enum " + fieldType.getName() + " for field " + field.getName());
+                    continue;
                 }
             }
             else if (!fieldType.isPrimitive() && !fieldType.isInstance(fieldObject)) {
@@ -114,18 +127,16 @@ public class ClassDeserializer {
                         fieldObject = deserializeClass((Map<String, Object>) fieldObject, fieldType);
                     }
                 }
-                else {
-                    if (deserializers != null && deserializers.containsKey(fieldType)) {
-                        fieldObject = deserializers.get(fieldType).deserializeObject(fieldObject);
-                    }
-
-                    if (!fieldType.isInstance(fieldObject)) {
-                        System.out.println("Type mismatch on field " + field.getName() + "!");
-                        System.out.println("Expected field type: " + field.getType().getName() + ". Object type found: " + fieldObject.getClass().getName());
-                        continue;
-                    }
+                else if (!fieldType.isInstance(fieldObject))  {
+                    displayError("Type mismatch on field " + field.getName() + "!");
+                    displayError("Expected field type: " + field.getType().getName() + ". Object type found: " + fieldObject.getClass().getName());
+                    continue;
                 }
             }
+
+            // After all the modifications to field object, double check that it's not null
+            if (fieldObject == null)
+                continue;
 
             field.setAccessible(true);
             try {
@@ -162,20 +173,10 @@ public class ClassDeserializer {
         }
     }
 
-    private Object convertListToArray(Object object) {
-        if (!(object instanceof List))
-            throw new RuntimeException("Not a list!");
-
-        return ((List) object).toArray();
-    }
-
-    private Object convertListToPrimitiveArray(Object object, Class<?> type) {
-        if (!(object instanceof List))
-            throw new RuntimeException("Not a list!");
-
+    private Object convertListToArray(Class<?> arrayType, Object object) {
         List objList = (List) object;
 
-        Object array = Array.newInstance(type, objList.size());
+        Object array = Array.newInstance(arrayType, objList.size());
 
         for (int i = 0; i < objList.size(); i++) {
             Array.set(array, i, objList.get(i));
@@ -198,6 +199,15 @@ public class ClassDeserializer {
         }
 
         return deserializeClass(objectMap, memberClass, memberInstance);
+    }
+
+    private void displayError(String errorMessage) {
+        if (errorLogger != null) {
+            errorLogger.severe(errorMessage);
+        }
+        else {
+            System.out.println(errorMessage);
+        }
     }
 
 }
