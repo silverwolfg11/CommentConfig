@@ -99,4 +99,9 @@ ParentConfigNode root = ...;
 NodeSerializer serializer = new NodeSerializer();
 String producedYAML = serializer.serializeToString(root);
 ```
-Then you can write that string to a file. 
+Then you can write that string to a file.
+
+### Deserializing a class
+Unfortunately it's not possible to convert the YAML string back to a `ParentConfigNode` because there is no record about what type of value was stored before.
+However, it is a possible to deserialize the YAML back to a `@SerializableConfig` class using the ORM. To do that simply create a new instance of `ClassDeserializer` and call
+the `deserializeClass` passing in the yaml string or file and the class to deserialize it as.
