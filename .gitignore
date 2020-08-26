@@ -1,0 +1,6 @@
+# Ignore IDEA project thingz
+.idea
+*.iml
+
+# Ignore maven thingz
+target
