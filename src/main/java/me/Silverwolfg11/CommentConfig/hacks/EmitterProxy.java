@@ -129,9 +129,19 @@ public class EmitterProxy {
                 if (writeNewLine)
                     writeNewLine();
 
-                writeCharArray(indentArray);
-                if (!comment.isEmpty())
-                    EmitterProxy.this.writer.append("# ").append(comment);
+                if (indentArray.length > 0)
+                    writeCharArray(indentArray);
+
+                // Prevent comments with newlines from getting written
+                if (comment.indexOf('\n') != -1)
+                    comment = comment.substring(0, comment.indexOf('\n'));
+
+                if (!comment.isEmpty()) {
+                    if (comment.charAt(0) != '#')
+                        comment = "# " + comment;
+
+                    EmitterProxy.this.writer.append(comment);
+                }
 
                 if (!writeNewLine) {
                     writeNewLine();
