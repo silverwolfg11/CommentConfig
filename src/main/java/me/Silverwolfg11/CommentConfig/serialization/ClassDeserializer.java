@@ -163,9 +163,10 @@ public class ClassDeserializer {
             for (int i = 0; i < nodePath.length - 1; ++i) {
                 Object currMapObj = currentMap.get(nodePath[i]);
 
-                try {
+                if (currMapObj instanceof Map) {
                     currentMap = (Map<String, Object>) currMapObj;
-                } catch (Throwable e) {
+                }
+                else {
                     return null;
                 }
             }
