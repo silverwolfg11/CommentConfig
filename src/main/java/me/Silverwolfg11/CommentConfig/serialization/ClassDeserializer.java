@@ -69,7 +69,10 @@ public class ClassDeserializer {
     private <T> T deserializeClass(Map<String, Object> objMap, Class<T> clazz) {
         T objInstance;
         try {
-            objInstance = clazz.newInstance();
+            Constructor<T> constructor = clazz.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            objInstance = constructor.newInstance();
+            constructor.setAccessible(false);
         } catch (ReflectiveOperationException e) {
             e.printStackTrace();
             return null;
@@ -111,7 +114,7 @@ public class ClassDeserializer {
                     continue;
                 }
             }
-            else if (!fieldType.isPrimitive() && !fieldType.isInstance(fieldObject)) {
+            else if (fieldObject != null && !fieldType.isPrimitive() && !fieldType.isInstance(fieldObject)) {
                 if (fieldType.isAnnotationPresent(SerializableConfig.class)
                     && (fieldObject instanceof Map)) {
 
@@ -127,7 +130,8 @@ public class ClassDeserializer {
                         fieldObject = deserializeClass((Map<String, Object>) fieldObject, fieldType);
                     }
                 }
-                else if (!fieldType.isInstance(fieldObject))  {
+
+                if (!fieldType.isInstance(fieldObject))  {
                     displayError("Type mismatch on field " + field.getName() + "!");
                     displayError("Expected field type: " + field.getType().getName() + ". Object type found: " + fieldObject.getClass().getName());
                     continue;
