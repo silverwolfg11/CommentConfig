@@ -1,13 +1,15 @@
 package me.Silverwolfg11.CommentConfig.serialization;
 
+import me.Silverwolfg11.CommentConfig.annotations.ConfigVersion;
 import me.Silverwolfg11.CommentConfig.annotations.Node;
 import me.Silverwolfg11.CommentConfig.annotations.SerializableConfig;
+import me.Silverwolfg11.CommentConfig.node.ConfigNode;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
@@ -49,9 +51,38 @@ public class ClassDeserializer {
         }
     }
 
-    public <T> T deserializeClass(File file, Class<T> clazz) throws FileNotFoundException {
-        final FileInputStream stream = new FileInputStream(file);
-        return deserializeClass(new InputStreamReader(stream, StandardCharsets.UTF_8), clazz);
+    public <T> T deserializeClass(File file, Class<T> clazz) throws IOException {
+        try (FileInputStream stream = new FileInputStream(file);
+             InputStreamReader isr = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+            return deserializeClass(isr, clazz);
+        }
+    }
+
+    public <T> T deserializeClassAndUpdate(File file, Class<T> clazz, NodeSerializer reserializer) throws IOException {
+        validateSerializable(clazz);
+        boolean reSaveConfig = false;
+        T deserializedClass;
+        try (FileInputStream stream = new FileInputStream(file);
+             InputStreamReader isr = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+            Map<String, Object> objectMap = yaml.load(isr);
+
+            if (clazz.isAnnotationPresent(ConfigVersion.class)) {
+                double latestVersion = clazz.getAnnotation(ConfigVersion.class).value();
+
+                if ((double) objectMap.getOrDefault("config-version", latestVersion + 1) < latestVersion) {
+                    reSaveConfig = true;
+                }
+            }
+
+            deserializedClass = deserializeClass(objectMap, clazz);
+        }
+
+        if (reSaveConfig && deserializedClass != null) {
+            ConfigNode serializedNode = ClassSerializer.serializeClass(deserializedClass);
+            reserializer.serializeToFile(file, serializedNode);
+        }
+
+        return deserializedClass;
     }
 
     public <T> T deserializeClass(InputStreamReader reader, Class<T> clazz) {

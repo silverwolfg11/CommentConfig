@@ -1,11 +1,13 @@
 package me.Silverwolfg11.CommentConfig.serialization;
 
 import me.Silverwolfg11.CommentConfig.annotations.Comment;
+import me.Silverwolfg11.CommentConfig.annotations.ConfigVersion;
 import me.Silverwolfg11.CommentConfig.annotations.Node;
 import me.Silverwolfg11.CommentConfig.annotations.SerializableConfig;
 import me.Silverwolfg11.CommentConfig.annotations.SnakeSerialize;
 import me.Silverwolfg11.CommentConfig.node.ConfigNode;
 import me.Silverwolfg11.CommentConfig.node.ParentConfigNode;
+import me.Silverwolfg11.CommentConfig.node.ValueConfigNode;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -32,6 +34,14 @@ public class ClassSerializer {
         if (clazz.isAnnotationPresent(Comment.class)) {
             Comment comment = clazz.getAnnotation(Comment.class);
             root.setComments(comment.value());
+        }
+
+        if (clazz.isAnnotationPresent(ConfigVersion.class)) {
+            ConfigVersion versionAnnot = clazz.getAnnotation(ConfigVersion.class);
+            double configVersion = versionAnnot.value();
+            ConfigNode versionNode = new ValueConfigNode(root, "config-version", configVersion);
+            versionNode.setComments("Do not touch!!!");
+            root.addChild(versionNode);
         }
 
         return root;
