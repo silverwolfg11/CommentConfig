@@ -19,6 +19,10 @@ import java.util.List;
 
 public class ClassSerializer {
 
+    // Private constructor since it's a utility class
+    private ClassSerializer() {
+    }
+
     public static ParentConfigNode serializeClass(Object obj) {
         Class<?> clazz = obj.getClass();
 
@@ -39,9 +43,7 @@ public class ClassSerializer {
         if (clazz.isAnnotationPresent(ConfigVersion.class)) {
             ConfigVersion versionAnnot = clazz.getAnnotation(ConfigVersion.class);
             double configVersion = versionAnnot.value();
-            ConfigNode versionNode = new ValueConfigNode(root, "config-version", configVersion);
-            versionNode.setComments("Do not touch!!!");
-            root.addChild(versionNode);
+            root.addChild("config-version", configVersion, "Do not touch!!!");
         }
 
         return root;

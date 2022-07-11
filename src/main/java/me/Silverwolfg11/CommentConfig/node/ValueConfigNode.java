@@ -5,13 +5,13 @@ import java.util.Objects;
 public class ValueConfigNode extends ConfigNode {
     private Object value;
 
-    public ValueConfigNode(ParentConfigNode parent, String key, Object value) {
+    protected ValueConfigNode(ParentConfigNode parent, String key, Object value) {
         super(parent, key);
         Objects.requireNonNull(value);
         this.value = value;
     }
 
-    public ValueConfigNode(Object value) {
+    protected ValueConfigNode(Object value) {
         this.value = value;
     }
 

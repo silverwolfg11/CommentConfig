@@ -12,7 +12,7 @@ public class ParentConfigNode extends ConfigNode {
     // Only used for root node
     private ParentConfigNode() {}
 
-    public ParentConfigNode(ParentConfigNode parent, String key) {
+    private ParentConfigNode(ParentConfigNode parent, String key) {
         super(parent, key);
     }
 
@@ -31,12 +31,24 @@ public class ParentConfigNode extends ConfigNode {
     }
 
     public ValueConfigNode addChild(String key, Object value) {
+        return addChild(key, value, (String[]) null);
+    }
+
+    public ValueConfigNode addChild(String key, Object value, String... comments) {
         ValueConfigNode valueNode = new ValueConfigNode(this, key, value);
+
+        if (comments != null && comments.length > 0)
+            valueNode.setComments(comments);
+
         addChild(valueNode);
         return valueNode;
     }
 
     public ParentConfigNode addSection(String sectionName) {
+        return addSection(sectionName, (String[]) null);
+    }
+
+    public ParentConfigNode addSection(String sectionName, String... comments) {
         ParentConfigNode parentNode = new ParentConfigNode(this, sectionName);
 
         // Don't add the section if it already exists
@@ -46,6 +58,10 @@ public class ParentConfigNode extends ConfigNode {
             if (childNode instanceof ParentConfigNode) {
                 return (ParentConfigNode) childNode;
             }
+        }
+
+        if (comments != null && comments.length > 0) {
+            parentNode.setComments(comments);
         }
 
         addChild(parentNode);
