@@ -1,0 +1,12 @@
+# This is a multi-line
+# header comment!
+# This is a test integer!
+test: 10
+# This is a renamed node's list!
+list:
+  - hello
+  - world!
+# This is an inner options class!
+options:
+  option1: 10
+  option2: false

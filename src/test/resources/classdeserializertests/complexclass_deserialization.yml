@@ -1,0 +1,7 @@
+test: 10
+list:
+  - hello
+  - world!
+options:
+  option1: 10
+  option2: false

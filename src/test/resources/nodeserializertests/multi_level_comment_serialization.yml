@@ -1,0 +1,15 @@
+# This is a header comment!
+# This is the first child comment!
+test: Hello
+# This is the first section comment!
+testSection:
+  # This is the second child comment!
+  test: Hello
+  # This is the second section comment!
+  testSection:
+    # This is the fourth child comment!
+    test: Hello
+  # This is the third child comment!
+  test2: World
+# This is the fifth child comment!
+test2: World
