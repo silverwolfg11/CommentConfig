@@ -5,10 +5,17 @@ import me.Silverwolfg11.CommentConfig.annotations.Node;
 import me.Silverwolfg11.CommentConfig.annotations.SerializableConfig;
 import me.Silverwolfg11.CommentConfig.node.ParentConfigNode;
 import me.Silverwolfg11.CommentConfig.serialization.ClassSerializer;
+import me.Silverwolfg11.CommentConfig.serialization.NodeSerializer;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.TypeDescription;
+import org.yaml.snakeyaml.representer.BaseRepresenter;
+import org.yaml.snakeyaml.representer.Represent;
+import org.yaml.snakeyaml.representer.Representer;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -55,12 +62,12 @@ public class ClassSerializerTests extends ConfigTesting {
     }
 
     @SerializableConfig
-    protected static class MapSerializationClass {
+    protected static class SimpleMapSerializationClass {
 
         @Comment("This is a serialized map!")
         private Map<String, String> map = new HashMap<>();
 
-        MapSerializationClass() {
+        SimpleMapSerializationClass() {
             map.put("hello", "world");
             map.put("the", "cake is a lie");
         }
@@ -68,7 +75,41 @@ public class ClassSerializerTests extends ConfigTesting {
 
     @Test
     protected void simpleMapClassSerialization() {
-        serializeClassAndCheckDiff(new MapSerializationClass(), "simplemapclass_serialization.yml");
+        serializeClassAndCheckDiff(new SimpleMapSerializationClass(), "simplemapclass_serialization.yml");
+    }
+
+    @SerializableConfig
+    protected static class ComplexMapSerializationClass {
+
+        @SerializableConfig
+        private static class Options {
+            @Comment("This is a comment on option1!")
+            String option1 = "Hello";
+            @Comment("This is a comment on option2")
+            String option2 = "World";
+        }
+
+        @Comment("This is a complex serialized map!")
+        private Map<String, Options> map = new HashMap<>();
+
+        ComplexMapSerializationClass() {
+            map.put("hello", new Options());
+            map.put("world", new Options());
+        }
+    }
+
+    @Test
+    protected void complexMapSerialization() {
+        ParentConfigNode rootNode = ClassSerializer.serializeClass(new ComplexMapSerializationClass());
+
+        NodeSerializer serializer = new NodeSerializer();
+        serializer.addSerializer(ComplexMapSerializationClass.Options.class);
+
+        File tempFile = getTempFile();
+        Assertions.assertDoesNotThrow(tempFile::createNewFile, "Error creating temporary file!");
+
+        Assertions.assertDoesNotThrow( () -> serializer.serializeToFile(tempFile, rootNode) );
+        checkNoDiff(tempFile.toPath(), getResource("complexmapclass_serialization.yml"));
     }
 
     @SerializableConfig

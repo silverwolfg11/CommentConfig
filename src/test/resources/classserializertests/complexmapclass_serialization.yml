@@ -1,0 +1,12 @@
+# This is a complex serialized map!
+map:
+  world:
+    # This is a comment on option1!
+    option1: Hello
+    # This is a comment on option2
+    option2: World
+  hello:
+    # This is a comment on option1!
+    option1: Hello
+    # This is a comment on option2
+    option2: World

@@ -1,5 +1,6 @@
 package me.Silverwolfg11.CommentConfig.serialization;
 
+import javafx.scene.Parent;
 import me.Silverwolfg11.CommentConfig.annotations.Comment;
 import me.Silverwolfg11.CommentConfig.annotations.ConfigVersion;
 import me.Silverwolfg11.CommentConfig.annotations.Node;
@@ -16,6 +17,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 public class ClassSerializer {
 
@@ -91,8 +93,9 @@ public class ClassSerializer {
                 childName = field.getName();
             }
 
-            ConfigNode newNode;
-            List<String> commentsList = null;
+            ConfigNode newNode = null;
+
+            List<String> commentsList = new ArrayList<>();
 
             if (fieldValue.getClass().isAnnotationPresent(SerializableConfig.class)) {
                 ParentConfigNode subSection = serializeClass(fieldValue);
@@ -101,18 +104,48 @@ public class ClassSerializer {
                 }
 
                 ParentConfigNode mergedSection = currParent.addSection(childName);
-                for (ConfigNode child : subSection.getChildren()) {
-                    mergedSection.addChild(child);
-                }
+                transferSectionNodes(subSection, mergedSection, true);
 
                 if (subSection.hasComments()) {
-                    commentsList = new ArrayList<>(subSection.getComments().length);
-                    Collections.addAll(commentsList, subSection.getComments());
+                    commentsList = lazyAdd(commentsList, subSection.getComments());
                 }
 
                 newNode = mergedSection;
             }
-            else {
+
+            // Allow parsing maps
+            else if (fieldValue instanceof Map) {
+                Map<?, ?> mapFieldValue = (Map<?, ?>) fieldValue;
+                // Don't serialize empty maps
+                if (mapFieldValue.isEmpty())
+                    continue;
+
+                Map.Entry<?, ?> firstEntry = mapFieldValue.entrySet().stream().findFirst().get();
+                Class<?> mapValueClass = firstEntry.getValue().getClass();
+
+                // Only handle complex value types for right now
+                if (mapValueClass.isAnnotationPresent(SerializableConfig.class)) {
+                    ParentConfigNode mapSection = currParent.addSection(childName);
+                    for (Map.Entry<?, ?> mapEntry : mapFieldValue.entrySet()) {
+                        Object key = mapEntry.getKey();
+                        Object value = mapEntry.getValue();
+
+                        String sectionName = key.toString();
+                        ParentConfigNode serializedValue = serializeClass(value);
+                        // Only add to section if serialized value has any member properties.
+                        if (serializedValue.hasChildren()) {
+                            ParentConfigNode entrySection = mapSection.addSection(sectionName);
+                            transferSectionNodes(serializedValue, entrySection, true);
+                        }
+                    }
+
+                    newNode = mapSection;
+                }
+            }
+
+            // Only serialize if node hasn't been initialized yet.
+            // Serves as a default serialization
+            if (newNode == null) {
                 newNode = currParent.addChild(childName, fieldValue);
             }
 
@@ -120,6 +153,7 @@ public class ClassSerializer {
 
             if (comments != null) {
                 String[] commentsArray = comments.value();
+                // Merge existing comments list
                 if (commentsList != null) {
                     Collections.addAll(commentsList, commentsArray);
                     commentsArray = commentsList.toArray(new String[0]);
@@ -129,6 +163,35 @@ public class ClassSerializer {
             }
 
         }
+    }
+    private static <T> List<T> lazyAdd(List<T> list, T... elements) {
+        if (elements == null || elements.length == 0)
+            return list;
+
+        if (list == null)
+            list = new ArrayList<>(elements.length);
+
+        Collections.addAll(list, elements);
+
+        return list;
+    }
+    private static void transferSectionNodes(ParentConfigNode from, ParentConfigNode to, boolean overwriteComments) {
+        for (ConfigNode child : from.getChildren()) {
+            to.addChild(child);
+        }
+
+        if (from.hasComments()) {
+            if (!to.hasComments() || overwriteComments) {
+                to.setComments(from.getComments());
+            }
+            else {
+                // Merge comments
+                List<String> comments = lazyAdd(null, to.getComments());
+                comments = lazyAdd(comments, from.getComments());
+                to.setComments(comments.toArray(new String[0]));
+            }
+        }
+
     }
 
     private static ParentConfigNode getParentNodeFromKey(String[] key, int currIndex, ParentConfigNode parent) {

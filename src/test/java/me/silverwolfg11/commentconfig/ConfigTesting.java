@@ -53,6 +53,8 @@ public abstract class ConfigTesting {
     }
 
     protected void checkNoDiff(Path generatedFilePath, Path expectedFilePath) {
+        Assertions.assertNotNull(generatedFilePath, "Generated file path for YAML diff is invalid!");
+        Assertions.assertNotNull(expectedFilePath, "Expected file path for YAML diff is invalid!");
 
         List<YamlDiffer.LineDiff> diffs = Assertions.assertDoesNotThrow(
                 () -> YamlDiffer.findDifference(generatedFilePath, expectedFilePath)
