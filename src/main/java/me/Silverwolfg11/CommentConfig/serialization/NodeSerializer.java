@@ -94,7 +94,7 @@ public class NodeSerializer {
             nodeVal = vConfig.getValue();
         }
 
-        if (nodeVal != null) {
+        if (nodeVal != null && node.hasKey()) {
             CommentKey key = new CommentKey(node.getKey(), node.getComments());
             parentMap.put(key, nodeVal);
         }

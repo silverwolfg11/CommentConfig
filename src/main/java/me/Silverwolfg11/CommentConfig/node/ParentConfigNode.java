@@ -75,6 +75,10 @@ public class ParentConfigNode extends ConfigNode {
         if (children == null)
             children = new LinkedHashMap<>();
 
+        // Force-fully re-parent to maintain correct tree
+        if (!childNode.hasParent() || childNode.getParent() != this)
+            childNode.setParent(this);
+
         children.put(childNode.getKey(), childNode);
     }
 

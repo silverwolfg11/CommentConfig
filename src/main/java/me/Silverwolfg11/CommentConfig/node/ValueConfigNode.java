@@ -42,4 +42,10 @@ public class ValueConfigNode extends ConfigNode {
     public <T> T getAs(Class<T> clazz) {
         return (T) value;
     }
+
+    // Returns a parent-less, key-less node
+    // The node must set a parent and key after use!
+    public static ValueConfigNode leaf(Object value) {
+        return new ValueConfigNode(value);
+    }
 }

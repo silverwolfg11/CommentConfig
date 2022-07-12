@@ -8,14 +8,9 @@ import me.Silverwolfg11.CommentConfig.serialization.ClassSerializer;
 import me.Silverwolfg11.CommentConfig.serialization.NodeSerializer;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.yaml.snakeyaml.TypeDescription;
-import org.yaml.snakeyaml.representer.BaseRepresenter;
-import org.yaml.snakeyaml.representer.Represent;
-import org.yaml.snakeyaml.representer.Representer;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -102,12 +97,10 @@ public class ClassSerializerTests extends ConfigTesting {
     protected void complexMapSerialization() {
         ParentConfigNode rootNode = ClassSerializer.serializeClass(new ComplexMapSerializationClass());
 
-        NodeSerializer serializer = new NodeSerializer();
-        serializer.addSerializer(ComplexMapSerializationClass.Options.class);
-
         File tempFile = getTempFile();
         Assertions.assertDoesNotThrow(tempFile::createNewFile, "Error creating temporary file!");
-
+        
+        NodeSerializer serializer = new NodeSerializer();
         Assertions.assertDoesNotThrow( () -> serializer.serializeToFile(tempFile, rootNode) );
         checkNoDiff(tempFile.toPath(), getResource("complexmapclass_serialization.yml"));
     }

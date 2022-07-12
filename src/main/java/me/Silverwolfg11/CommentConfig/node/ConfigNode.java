@@ -33,7 +33,7 @@ public abstract class ConfigNode {
     }
 
     public boolean hasKey() {
-        return key != null;
+        return key != null && !key.isEmpty();
     }
 
     public String getKey() {
