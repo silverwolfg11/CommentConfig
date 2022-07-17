@@ -11,13 +11,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -97,7 +95,7 @@ public class ClassDeserializer {
         return deserializeClass(objectMap, clazz);
     }
 
-    private <T> T deserializeClass(Map<String, Object> objMap, Class<T> clazz) {
+    <T> T deserializeClass(Map<String, Object> objMap, Class<T> clazz) {
         T objInstance;
         try {
             Constructor<T> constructor = clazz.getDeclaredConstructor();
@@ -112,77 +110,41 @@ public class ClassDeserializer {
         return deserializeClass(objMap, clazz, objInstance);
     }
 
-    private <T> T deserializeClass(Map<String, Object> objectMap, Class<T> clazz, T objInstance) {
+    <T> T deserializeClass(Map<String, Object> serializedMap, Class<T> clazz, T clazzInstance) {
+        FieldDeserializer fieldDeserializer = new FieldDeserializer(this, errorLogger, clazz, clazzInstance);
         for (Field field : clazz.getDeclaredFields()) {
             // Skip compiler generated or transient fields
             if (field.isSynthetic() || Modifier.isTransient(field.getModifiers()))
                 continue;
 
-            // We need to get the associated object for the field
-            Object fieldObject = getFieldObject(objectMap, field);
+            // We need to get the associated serialized object for the field
+            Object serializedObject = getFieldObject(serializedMap, field);
 
-            if (fieldObject == null)
+            if (serializedObject == null)
                 continue;
 
             Class<?> fieldType = field.getType();
 
             if (deserializers != null && deserializers.containsKey(fieldType)) {
-                fieldObject = deserializers.get(fieldType).deserializeObject(fieldObject);
+                serializedObject = deserializers.get(fieldType).deserializeObject(serializedObject);
             }
 
-            if (fieldType.isArray() && fieldObject instanceof List) {
-                // Since the field is an array, and YAML loads all iterables as lists,
-                // we will have to convert it to an array.
-                Class<?> pType = fieldType.getComponentType();;
-                fieldObject = convertListToArray(pType, fieldObject);
-            }
-            else if (fieldType.isEnum() && fieldObject instanceof String) {
-                try {
-                    Class<? extends Enum> enumClass = (Class<? extends Enum>) fieldType;
-                    fieldObject = Enum.valueOf(enumClass, (String) fieldObject);
-                } catch (IllegalArgumentException ex) {
-                    displayError("Could not convert `" + fieldObject + "` to enum " + fieldType.getName() + " for field " + field.getName());
-                    continue;
-                }
-            }
-            else if (fieldObject != null && !fieldType.isPrimitive() && !fieldType.isInstance(fieldObject)) {
-                if (fieldType.isAnnotationPresent(SerializableConfig.class)
-                    && (fieldObject instanceof Map)) {
-
-                    // Is an inner member class
-                    if (fieldType.isMemberClass() && !Modifier.isStatic(fieldType.getModifiers())) {
-                        if (!fieldType.getEnclosingClass().equals(clazz)) {
-                            throw new RuntimeException("Cannot deserialize inner member class " + fieldType.getName());
-                        }
-
-                        fieldObject = deserializeMemberInstance(fieldType, clazz, objInstance, (Map<String, Object>) fieldObject);
-                    }
-                    else {
-                        fieldObject = deserializeClass((Map<String, Object>) fieldObject, fieldType);
-                    }
-                }
-
-                if (!fieldType.isInstance(fieldObject))  {
-                    displayError("Type mismatch on field " + field.getName() + "!");
-                    displayError("Expected field type: " + field.getType().getName() + ". Object type found: " + fieldObject.getClass().getName());
-                    continue;
-                }
-            }
+            serializedObject = fieldDeserializer.deserializeObject(field, serializedObject, fieldType);
 
             // After all the modifications to field object, double check that it's not null
-            if (fieldObject == null)
+            if (serializedObject == null)
                 continue;
 
             field.setAccessible(true);
             try {
-                field.set(objInstance, fieldObject);
+                field.set(clazzInstance, serializedObject);
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
             field.setAccessible(false);
         }
 
-        return objInstance;
+        return clazzInstance;
     }
 
     private Object getFieldObject(Map<String, Object> objectMap, Field field) {
@@ -207,34 +169,6 @@ public class ClassDeserializer {
         else {
             return objectMap.get(field.getName());
         }
-    }
-
-    private Object convertListToArray(Class<?> arrayType, Object object) {
-        List objList = (List) object;
-
-        Object array = Array.newInstance(arrayType, objList.size());
-
-        for (int i = 0; i < objList.size(); i++) {
-            Array.set(array, i, objList.get(i));
-        }
-
-        return array;
-    }
-
-    private <T> Object deserializeMemberInstance(Class<T> memberClass, Class<?> enclosingClass, Object enclosingInstance, Map<String, Object> objectMap) {
-        T memberInstance;
-
-        try {
-            Constructor<?> constructor =  memberClass.getDeclaredConstructor(enclosingClass);
-            constructor.setAccessible(true);
-            memberInstance = (T) constructor.newInstance(enclosingInstance);
-            constructor.setAccessible(false);
-        } catch (ReflectiveOperationException e) {
-            e.printStackTrace();
-            return null;
-        }
-
-        return deserializeClass(objectMap, memberClass, memberInstance);
     }
 
     private void displayError(String errorMessage) {

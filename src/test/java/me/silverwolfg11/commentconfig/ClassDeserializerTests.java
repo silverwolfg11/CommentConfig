@@ -46,6 +46,18 @@ public class ClassDeserializerTests extends ConfigTesting {
     }
 
     @SerializableConfig
+    protected static class ComplexMapClass {
+
+        @SerializableConfig
+        private static class Options {
+            String option1;
+            String option2;
+        }
+
+        private Map<String, Options> map;
+    }
+
+    @SerializableConfig
     @Comment({"This is a multi-line", "header comment!"})
     protected static class ComplexClass {
         private int test;
@@ -88,6 +100,25 @@ public class ClassDeserializerTests extends ConfigTesting {
         Assertions.assertEquals(smc.map.size(), 2);
         Assertions.assertEquals(smc.map.get("the"), "cake is a lie");
         Assertions.assertEquals(smc.map.get("hello"), "world");
+    }
+
+    // Test deserializing a slightly complex class with a map member.
+    @Test
+    protected void complexMapDeserialization() {
+        ComplexMapClass cmc = deserializeClassFromFile("complexmapclass_deserialization.yml", ComplexMapClass.class);
+
+        Assertions.assertEquals(cmc.map.size(), 2);
+
+        Assertions.assertTrue(cmc.map.containsKey("hello"));
+        Assertions.assertTrue(cmc.map.containsKey("world"));
+
+        ComplexMapClass.Options option1 = cmc.map.get("hello");
+        Assertions.assertEquals(option1.option1, "Hello");
+        Assertions.assertEquals(option1.option2, "World");
+
+        ComplexMapClass.Options option2 = cmc.map.get("world");
+        Assertions.assertEquals(option2.option1, "Hello");
+        Assertions.assertEquals(option2.option2, "World");
     }
 
     // Test deserializing a complex class with multiple members.

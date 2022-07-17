@@ -74,6 +74,20 @@ public class ClassSerializer {
                 Object value = mapEntry.getValue();
 
                 String nodeKey = key.toString();
+
+                if ((!(key instanceof String)) && (!key.getClass().isEnum())) {
+                    // If the key is not easily converted to a string
+                    // then check if we can just let snakeyaml serialize the map.
+                    Class<?> valueClass = value.getClass();
+                    if (!valueClass.isAnnotationPresent(SerializableConfig.class)
+                            && (!(value instanceof Iterable))) {
+                        return ValueConfigNode.leaf(obj);
+                    }
+
+                    // If not, throw an exception
+                    throw new UnsupportedOperationException("Cannot serialize map that does not have a string or enum key");
+                }
+
                 ConfigNode valueNode = serializeChild(value);
 
                 if (valueNode != null) {
