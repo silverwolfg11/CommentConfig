@@ -57,6 +57,24 @@ public class ClassSerializerTests extends ConfigTesting {
     }
 
     @SerializableConfig
+    protected static class ComplexListSerializationClass {
+        @SerializableConfig
+        private static class Options {
+            @Comment("This is a list in a list!")
+            List<String> options = Arrays.asList("option1", "option2", "option3");
+        }
+
+        @Comment("This is a complex list!")
+        private List<Options> list = Arrays.asList(new Options(), new Options());
+    }
+
+
+    @Test
+    protected void complexListClassSerialization() {
+        serializeClassAndCheckDiff(new ComplexListSerializationClass(), "complexlistclass_serialization.yml");
+    }
+
+    @SerializableConfig
     protected static class SimpleMapSerializationClass {
 
         @Comment("This is a serialized map!")

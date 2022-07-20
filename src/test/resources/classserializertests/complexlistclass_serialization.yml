@@ -1,0 +1,14 @@
+# This is a complex list!
+list:
+-
+  # This is a list in a list!
+  options:
+  - option1
+  - option2
+  - option3
+-
+  # This is a list in a list!
+  options:
+  - option1
+  - option2
+  - option3

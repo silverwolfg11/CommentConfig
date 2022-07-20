@@ -42,7 +42,11 @@ public class FieldDeserializer {
                 Class<? extends Enum> enumClass = (Class<? extends Enum>) objectClass;
                 return Enum.valueOf(enumClass, (String) serializedObj);
             } catch (IllegalArgumentException ex) {
-//                displayError("Could not convert `" + serializedObj + "` to enum " + objectClass.getName() + " for field " + field.getName());
+                String errorMsg = String.format("Couldn't convert '%s' to enum '%s'", serializedObj, objectClass.getName());
+                if (field != null)
+                    errorMsg += " for field " + field.getName() + "!";
+
+                printError(errorMsg);
                 return null;
             }
         }

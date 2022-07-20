@@ -3,11 +3,15 @@ package me.Silverwolfg11.CommentConfig.hacks;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.emitter.Emitter;
 import org.yaml.snakeyaml.events.Event;
+import org.yaml.snakeyaml.events.SequenceEndEvent;
+import org.yaml.snakeyaml.events.SequenceStartEvent;
 
 import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.Field;
+import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -18,6 +22,9 @@ public class EmitterProxy {
     protected Writer writer;
     protected final char[] bestLineBreak;
     protected boolean firstLine = true;
+
+    // Use the sequence stack to indicate whether an element is being written within a sequence.
+    protected Deque<Boolean> sequenceStack = new ArrayDeque<>();
 
     // Reflection
     private Field indent;
@@ -110,25 +117,49 @@ public class EmitterProxy {
     }
 
     private void writeComments(String[] comments) {
-        int indentation = getIndent();
-        char[] indentArray = buildIndentation(indentation);
-        boolean writeNewLine = true;
+        if (comments == null || comments.length == 0)
+            return;
 
-        // Check if the writer has been written to already.
-        // Otherwise we will have to add a new line after the first comment
+        int indentation = getIndent();
+        // By default, always add a newline at the beginning
+        // because a scalar value will also prepend a newline.
+        boolean putNewlineAtStart = true;
+        boolean putNewlineAtEnd = false;
+
+        // Only add a newline to the end.
+        // if the writer has not been written to yet.
         if (firstLine) {
             int col = getColumn();
-            if (col == 0)
-                writeNewLine = false;
+            if (col == 0) {
+                putNewlineAtStart = false;
+                putNewlineAtEnd = true;
+            }
 
             firstLine = false;
         }
 
-        for (String comment : comments) {
-            try {
-                if (writeNewLine)
-                    writeNewLine();
+        // Add a newline both at the beginning and end
+        // if writing comments in a sequence.
+        if (!sequenceStack.isEmpty()) {
+            putNewlineAtStart = true;
+            putNewlineAtEnd = true;
 
+            // Indentation is also slightly off in a sequence
+            if (indentation > 0)
+                indentation -= 1;
+        }
+
+        if (putNewlineAtStart)
+            writeNewLine();
+
+        char[] indentArray = buildIndentation(indentation);
+        for (int i = 0; i < comments.length; i++) {
+            // Add a newline starting from the second line of comments.
+            if (i > 0)
+                writeNewLine();
+
+            String comment = comments[i];
+            try {
                 if (indentArray.length > 0)
                     writeCharArray(indentArray);
 
@@ -142,15 +173,13 @@ public class EmitterProxy {
 
                     EmitterProxy.this.writer.append(comment);
                 }
-
-                if (!writeNewLine) {
-                    writeNewLine();
-                }
-
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+
+        if (putNewlineAtEnd)
+            writeNewLine();
     }
 
     /**
@@ -176,6 +205,15 @@ public class EmitterProxy {
 
                 el = super.poll();
             }
+
+            // Keep track of whether we're in a sequence
+            if (el instanceof SequenceStartEvent) {
+                sequenceStack.push(true);
+            }
+            else if (el instanceof SequenceEndEvent) {
+                sequenceStack.pop();
+            }
+
             return el;
         }
     }

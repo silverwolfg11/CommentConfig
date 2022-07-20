@@ -6,6 +6,7 @@ import me.Silverwolfg11.CommentConfig.annotations.ConfigVersion;
 import me.Silverwolfg11.CommentConfig.annotations.Node;
 import me.Silverwolfg11.CommentConfig.annotations.SerializableConfig;
 import me.Silverwolfg11.CommentConfig.annotations.SnakeSerialize;
+import me.Silverwolfg11.CommentConfig.node.CommentKey;
 import me.Silverwolfg11.CommentConfig.node.ConfigNode;
 import me.Silverwolfg11.CommentConfig.node.ParentConfigNode;
 import me.Silverwolfg11.CommentConfig.node.ValueConfigNode;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -97,6 +99,31 @@ public class ClassSerializer {
             }
 
             return mapSection;
+        }
+        else if (obj instanceof Collection) {
+            Collection<?> collection = (Collection<?>) obj;
+            // Don't serialize empty collections
+            if (collection.isEmpty())
+                return null;
+            Class<?> collectionClass = collection.stream().findFirst().get().getClass();
+            // Only specially serialize complex objects
+            if (!collectionClass.isAnnotationPresent(SerializableConfig.class))
+                return ValueConfigNode.leaf(obj);
+            
+            List<Map<CommentKey, Object>> serializedList = new ArrayList<>();
+            for (Object el : collection) {
+                ParentConfigNode objectNode = serializeClass(el);
+                if (!objectNode.hasChildren())
+                    continue;
+
+                // Serialize the node to a comment key map in order to preserve comments on the serialized object.
+                Map<CommentKey, Object> objectMap = new LinkedHashMap<>();
+                NodeSerializer.serializeToCommentMap(objectNode, objectMap);
+
+                serializedList.add(objectMap);
+            }
+
+            return ValueConfigNode.leaf(serializedList);
         }
         else {
             // Return parent-less, key-less value node

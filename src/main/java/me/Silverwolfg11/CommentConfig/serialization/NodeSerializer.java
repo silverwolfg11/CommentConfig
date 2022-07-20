@@ -48,7 +48,7 @@ public class NodeSerializer {
                 builder.append("\n");
             }
 
-            dump = builder.toString() + dump;
+            dump = builder + dump;
         }
 
         return dump;
@@ -67,7 +67,7 @@ public class NodeSerializer {
         }
     }
 
-    private void serializeToCommentMap(ConfigNode node, Map<CommentKey, Object> parentMap) {
+    static void serializeToCommentMap(ConfigNode node, Map<CommentKey, Object> parentMap) {
         Object nodeVal = null;
 
         if (node instanceof ParentConfigNode) {
