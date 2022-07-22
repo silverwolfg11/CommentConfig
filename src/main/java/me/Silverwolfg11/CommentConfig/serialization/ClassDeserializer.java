@@ -123,13 +123,13 @@ public class ClassDeserializer {
             if (serializedObject == null)
                 continue;
 
-            Class<?> fieldType = field.getType();
+            Class<?> fieldClass = field.getClass();
 
-            if (deserializers != null && deserializers.containsKey(fieldType)) {
-                serializedObject = deserializers.get(fieldType).deserializeObject(serializedObject);
+            if (deserializers != null && deserializers.containsKey(fieldClass)) {
+                serializedObject = deserializers.get(fieldClass).deserializeObject(serializedObject);
             }
 
-            serializedObject = fieldDeserializer.deserializeObject(field, serializedObject, fieldType);
+            serializedObject = fieldDeserializer.deserializeObject(field, serializedObject, field.getGenericType());
 
             // After all the modifications to field object, double check that it's not null
             if (serializedObject == null)
