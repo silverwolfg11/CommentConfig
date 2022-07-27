@@ -1,4 +1,6 @@
 # This is a test list!
 list:
-  - hello
-  - world!
+  - # This is a test string!
+    test: TestStr
+  - # This is a test string!
+    test: TestStr

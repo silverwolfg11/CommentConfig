@@ -32,7 +32,8 @@ public class ClassSerializer {
 
         // Make sure class is marked to be serializable
         if (!clazz.isAnnotationPresent(SerializableConfig.class)) {
-            throw new UnsupportedOperationException("Object must have the `SerializableConfig` annotation!");
+            String exMsg = String.format("Class '%s' must have the '@SerializableConfig' annotation to be serialized!", clazz.getName());
+            throw new UnsupportedOperationException(exMsg);
         }
 
         ParentConfigNode root = ParentConfigNode.createRoot();
@@ -53,12 +54,23 @@ public class ClassSerializer {
         return root;
     }
 
-    private static ConfigNode serializeChild(Object obj) {
+    private static boolean isSpeciallySerialized(Object obj) {
+        Class<?> clazz = obj.getClass();
+        return clazz.isEnum() ||
+                clazz.isAnnotationPresent(SerializableConfig.class) ||
+                obj instanceof Map ||
+                obj instanceof Collection;
+    }
+
+    private static ConfigNode serializeChild(Object obj, boolean snakeSerialize) {
         if (obj == null)
             return null;
 
         Class<?> clazz = obj.getClass();
-        if (clazz.isAnnotationPresent(SerializableConfig.class)) {
+        if (clazz.isEnum() && !snakeSerialize) {
+            return ValueConfigNode.leaf(((Enum) obj).name());
+        }
+        else if (clazz.isAnnotationPresent(SerializableConfig.class)) {
             ParentConfigNode classNode = serializeClass(obj);
             // If class node is empty then skip serialization
             return classNode.hasChildren() ? classNode : null;
@@ -75,14 +87,10 @@ public class ClassSerializer {
                 Object key = mapEntry.getKey();
                 Object value = mapEntry.getValue();
 
-                String nodeKey = key.toString();
-
                 if ((!(key instanceof String)) && (!key.getClass().isEnum())) {
                     // If the key is not easily converted to a string
                     // then check if we can just let snakeyaml serialize the map.
-                    Class<?> valueClass = value.getClass();
-                    if (!valueClass.isAnnotationPresent(SerializableConfig.class)
-                            && (!(value instanceof Iterable))) {
+                    if (!isSpeciallySerialized(obj)) {
                         return ValueConfigNode.leaf(obj);
                     }
 
@@ -90,7 +98,8 @@ public class ClassSerializer {
                     throw new UnsupportedOperationException("Cannot serialize map that does not have a string or enum key");
                 }
 
-                ConfigNode valueNode = serializeChild(value);
+                String nodeKey = key.getClass().isEnum() ? ((Enum<?>) key).name() : key.toString();
+                ConfigNode valueNode = serializeChild(value, snakeSerialize);
 
                 if (valueNode != null) {
                     valueNode.setKey(nodeKey);
@@ -105,22 +114,32 @@ public class ClassSerializer {
             // Don't serialize empty collections
             if (collection.isEmpty())
                 return null;
-            Class<?> collectionClass = collection.stream().findFirst().get().getClass();
+
+            Object sampleEl = collection.stream().findFirst().get();
+
             // Only specially serialize complex objects
-            if (!collectionClass.isAnnotationPresent(SerializableConfig.class))
+            if (!isSpeciallySerialized(sampleEl))
                 return ValueConfigNode.leaf(obj);
             
-            List<Map<CommentKey, Object>> serializedList = new ArrayList<>();
+            List<Object> serializedList = new ArrayList<>();
             for (Object el : collection) {
-                ParentConfigNode objectNode = serializeClass(el);
-                if (!objectNode.hasChildren())
-                    continue;
+                Object serializedElement;
+                ConfigNode node = serializeChild(el, snakeSerialize);
+                if (node instanceof ValueConfigNode) {
+                    serializedElement = ((ValueConfigNode) node).getValue();
+                }
+                else {
+                    ParentConfigNode objectNode = (ParentConfigNode) node;
+                    if (!objectNode.hasChildren())
+                        continue;
 
-                // Serialize the node to a comment key map in order to preserve comments on the serialized object.
-                Map<CommentKey, Object> objectMap = new LinkedHashMap<>();
-                NodeSerializer.serializeToCommentMap(objectNode, objectMap);
+                    // Serialize the node to a comment key map in order to preserve comments on the serialized object.
+                    Map<CommentKey, Object> objectMap = new LinkedHashMap<>();
+                    NodeSerializer.serializeToCommentMap(objectNode, objectMap);
+                    serializedElement = objectMap;
+                }
 
-                serializedList.add(objectMap);
+                serializedList.add(serializedElement);
             }
 
             return ValueConfigNode.leaf(serializedList);
@@ -152,14 +171,6 @@ public class ClassSerializer {
             if (fieldValue == null)
                 continue;
 
-            // Handle custom serialization
-            if (!field.isAnnotationPresent(SnakeSerialize.class)) {
-                // Convert enums to strings otherwise SnakeYAML will serialize the enum class too which looks ugly
-                if (fieldValue.getClass().isEnum()) {
-                    fieldValue = ((Enum) fieldValue).name();
-                }
-            }
-
             ParentConfigNode currParent;
             String childName;
 
@@ -174,7 +185,7 @@ public class ClassSerializer {
                 childName = field.getName();
             }
 
-            ConfigNode newNode = serializeChild(fieldValue);
+            ConfigNode newNode = serializeChild(fieldValue, field.isAnnotationPresent(SnakeSerialize.class));
             if (newNode == null)
                 continue;
 

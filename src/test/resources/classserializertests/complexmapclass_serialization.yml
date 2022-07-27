@@ -1,12 +1,20 @@
 # This is a complex serialized map!
 map:
-  world:
+  # Test root comment!
+  TEST13:
     # This is a comment on option1!
-    option1: Hello
+    option1:
+      TEST23: 3
+      TEST21: 1
+      TEST22: 2
     # This is a comment on option2
     option2: World
-  hello:
+  # Test root comment!
+  TEST11:
     # This is a comment on option1!
-    option1: Hello
+    option1:
+      TEST23: 3
+      TEST21: 1
+      TEST22: 2
     # This is a comment on option2
     option2: World

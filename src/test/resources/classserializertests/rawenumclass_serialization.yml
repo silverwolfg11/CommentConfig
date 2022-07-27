@@ -1,0 +1,2 @@
+# This is a test comment!
+test: !!me.silverwolfg11.commentconfig.ClassSerializerTests$RawEnumClass$TestEnum 'TEST1'

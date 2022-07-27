@@ -2,8 +2,9 @@ package me.Silverwolfg11.CommentConfig.hacks;
 
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.emitter.Emitter;
+import org.yaml.snakeyaml.events.CollectionEndEvent;
 import org.yaml.snakeyaml.events.Event;
-import org.yaml.snakeyaml.events.SequenceEndEvent;
+import org.yaml.snakeyaml.events.MappingStartEvent;
 import org.yaml.snakeyaml.events.SequenceStartEvent;
 
 import java.io.IOException;
@@ -12,6 +13,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -22,9 +24,6 @@ public class EmitterProxy {
     protected Writer writer;
     protected final char[] bestLineBreak;
     protected boolean firstLine = true;
-
-    // Use the sequence stack to indicate whether an element is being written within a sequence.
-    protected Deque<Boolean> sequenceStack = new ArrayDeque<>();
 
     // Reflection
     private Field indent;
@@ -112,11 +111,17 @@ public class EmitterProxy {
 
     private char[] buildIndentation(int length) {
         char[] data = new char[length];
-        Arrays.fill(data, ' ');
+        if (length > 0)
+            Arrays.fill(data, ' ');
         return data;
     }
 
-    private void writeComments(String[] comments) {
+    private enum CommentLocation {
+        IN_SEQUENCE,
+        IN_MAP
+    }
+
+    private void writeComments(String[] comments, CommentLocation commentLoc) {
         if (comments == null || comments.length == 0)
             return;
 
@@ -125,8 +130,9 @@ public class EmitterProxy {
         // because a scalar value will also prepend a newline.
         boolean putNewlineAtStart = true;
         boolean putNewlineAtEnd = false;
+        int newLineIndent = 0;
 
-        // Only add a newline to the end.
+        // Add a newline to the end.
         // if the writer has not been written to yet.
         if (firstLine) {
             int col = getColumn();
@@ -138,15 +144,15 @@ public class EmitterProxy {
             firstLine = false;
         }
 
-        // Add a newline both at the beginning and end
-        // if writing comments in a sequence.
-        if (!sequenceStack.isEmpty()) {
-            putNewlineAtStart = true;
+        // Add a newline only to the end
+        // if writing comments directly in a sequence (YAML sequence).
+        if (commentLoc == CommentLocation.IN_SEQUENCE) {
+            putNewlineAtStart = false;
             putNewlineAtEnd = true;
-
-            // Indentation is also slightly off in a sequence
-            if (indentation > 0)
-                indentation -= 1;
+            // Correctly indent the scalar after the comment.
+            newLineIndent = indentation - 1;
+            // Add the comment directly next to the "-" character of the sequence.
+            indentation = 1;
         }
 
         if (putNewlineAtStart)
@@ -180,6 +186,15 @@ public class EmitterProxy {
 
         if (putNewlineAtEnd)
             writeNewLine();
+
+        if (newLineIndent > 0) {
+            writeCharArray(buildIndentation(newLineIndent));
+        }
+    }
+
+    private enum CollectionType {
+        MAPPING,
+        SEQUENCE
     }
 
     /**
@@ -193,25 +208,67 @@ public class EmitterProxy {
             super(capacity);
         }
 
+        // Use the collection stack to indicate whether
+        // an element is being written within a sequence
+        // or a map.
+        private final Deque<CollectionType> collectionStack = new ArrayDeque<>();
+
+        private CollectionType secondElementInStack() {
+            if (collectionStack.size() < 2)
+                return null;
+
+            Iterator<CollectionType> stackIter = collectionStack.iterator();
+            stackIter.next(); // First element
+
+            return stackIter.next(); // Second Element
+        }
+
+        private CommentLocation getCommentLocation() {
+            if (collectionStack.isEmpty()) {
+                return null;
+            }
+
+            // Comment location determined by this algorithm:
+            // If the last start event was for a mapping,
+            // (since comment events happen after scalar mapping events)
+            // and the second to last event was a sequence, then
+            // the comment is being written is a sequence. Otherwise,
+            // it's being written in a normal mapping.
+            if (collectionStack.peek() == CollectionType.MAPPING) {
+                CollectionType secondEl = secondElementInStack();
+                if (secondEl == null || secondEl == CollectionType.MAPPING)
+                    return CommentLocation.IN_MAP;
+                else if (secondEl == CollectionType.SEQUENCE) {
+                    return CommentLocation.IN_SEQUENCE;
+                }
+            }
+
+            return CommentLocation.IN_SEQUENCE;
+        }
+
         @Override
         public T poll() {
             T el = super.poll();
 
             if (el instanceof CommentEvent) {
                 CommentEvent commentEvent = (CommentEvent) el;
-                if (commentEvent.hasComments()) {
-                    writeComments(commentEvent.getComments());
-                }
-
+                // Don't let the normal emitter process the comment event.
                 el = super.poll();
+
+                if (commentEvent.hasComments()) {
+                    writeComments(commentEvent.getComments(), getCommentLocation());
+                }
             }
 
-            // Keep track of whether we're in a sequence
-            if (el instanceof SequenceStartEvent) {
-                sequenceStack.push(true);
+            // Keep track of whether we're in a sequence or in a map.
+            if (el instanceof MappingStartEvent) {
+                collectionStack.push(CollectionType.MAPPING);
             }
-            else if (el instanceof SequenceEndEvent) {
-                sequenceStack.pop();
+            else if (el instanceof SequenceStartEvent) {
+                collectionStack.push(CollectionType.SEQUENCE);
+            }
+            else if (el instanceof CollectionEndEvent) {
+                collectionStack.pop();
             }
 
             return el;
