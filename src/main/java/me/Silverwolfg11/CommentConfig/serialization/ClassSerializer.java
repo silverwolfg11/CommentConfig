@@ -73,12 +73,12 @@ public class ClassSerializer {
                 obj instanceof Collection;
     }
 
-    private static ConfigNode serializeChild(Object obj, boolean snakeSerialize) {
+    private static ConfigNode serializeChild(Object obj) {
         if (obj == null)
             return null;
 
         Class<?> clazz = obj.getClass();
-        if (clazz.isEnum() && !snakeSerialize) {
+        if (clazz.isEnum()) {
             return ValueConfigNode.leaf(((Enum) obj).name());
         }
         else if (clazz.isAnnotationPresent(SerializableConfig.class)) {
@@ -110,7 +110,7 @@ public class ClassSerializer {
                 }
 
                 String nodeKey = key.getClass().isEnum() ? ((Enum<?>) key).name() : key.toString();
-                ConfigNode valueNode = serializeChild(value, snakeSerialize);
+                ConfigNode valueNode = serializeChild(value);
 
                 if (valueNode != null) {
                     valueNode.setKey(nodeKey);
@@ -135,7 +135,7 @@ public class ClassSerializer {
             List<Object> serializedList = new ArrayList<>();
             for (Object el : collection) {
                 Object serializedElement;
-                ConfigNode node = serializeChild(el, snakeSerialize);
+                ConfigNode node = serializeChild(el);
                 if (node instanceof ValueConfigNode) {
                     serializedElement = ((ValueConfigNode) node).getValue();
                 }
@@ -196,7 +196,14 @@ public class ClassSerializer {
                 childName = field.getName();
             }
 
-            ConfigNode newNode = serializeChild(fieldValue, field.isAnnotationPresent(SnakeSerialize.class));
+            ConfigNode newNode;
+            if (field.isAnnotationPresent(SnakeSerialize.class)) {
+                newNode = ValueConfigNode.leaf(fieldValue);
+            }
+            else {
+                newNode = serializeChild(fieldValue);
+            }
+
             if (newNode == null)
                 continue;
 
