@@ -1,6 +1,5 @@
 package me.Silverwolfg11.CommentConfig.serialization;
 
-import javafx.scene.Parent;
 import me.Silverwolfg11.CommentConfig.annotations.Comment;
 import me.Silverwolfg11.CommentConfig.annotations.ConfigVersion;
 import me.Silverwolfg11.CommentConfig.annotations.Node;
@@ -27,6 +26,18 @@ public class ClassSerializer {
     private ClassSerializer() {
     }
 
+    /**
+     * Serialize an object to an abstract node representation.
+     *
+     * The object's class must have the {@link SerializableConfig} annotation
+     * marked on it.
+     *
+     * Use {@link NodeSerializer} to serialize the nodes to a YAML representation.
+     *
+     * @param obj the object to serialize.
+     *
+     * @return the node representation of the object.
+     */
     public static ParentConfigNode serializeClass(Object obj) {
         Class<?> clazz = obj.getClass();
 

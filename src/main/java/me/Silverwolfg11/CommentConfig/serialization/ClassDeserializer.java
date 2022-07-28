@@ -17,8 +17,12 @@ import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Logger;
 
+/**
+ * A deserializer to deserialize YAML to an instance of a class.
+ */
 public class ClassDeserializer {
 
     private final Yaml yaml;
@@ -32,13 +36,30 @@ public class ClassDeserializer {
         this.yaml = new Yaml(options);
     }
 
+    /**
+     * Add a deserializer to handle deserializing a specific class type.
+     *
+     * @param clazz Class type that this deserializer handles.
+     *              Class type <b>cannot</b> be {@code null}.
+     * @param deserializable Deserializer interface.
+     *                       Interface <b>cannot</b> be {@code null}.
+     */
     public void addDeserializer(Class<?> clazz, DeserializableObject deserializable) {
+        Objects.requireNonNull(clazz);
+        Objects.requireNonNull(deserializable);
+
         if (deserializers == null)
             deserializers = new HashMap<>();
 
         deserializers.put(clazz, deserializable);
     }
 
+    /**
+     * Set the error logger that the class deserializer
+     * will use to log error messages.
+     *
+     * @param logger Logger to use for errors.
+     */
     public void setErrorLogger(Logger logger) {
         this.errorLogger = logger;
     }
@@ -49,18 +70,52 @@ public class ClassDeserializer {
         }
     }
 
+    /**
+     * Deserialize a YAML file to a class.
+     * The class must have the {@link SerializableConfig} annotation,
+     * and a default constructor.
+     * <br><br>
+     * <b>None of the arguments can be {@code null}.</b>
+     *
+     * @param file YAML file to read from.
+     * @param clazz Class to deserialize to.
+     *
+     * @return the deserialized object instance.
+     *
+     * @param <T> Type to deserialize to.
+     * @throws IOException if there is an error reading the file.
+     */
     public <T> T deserializeClass(File file, Class<T> clazz) throws IOException {
+        Objects.requireNonNull(file);
+        Objects.requireNonNull(clazz);
+
         try (FileInputStream stream = new FileInputStream(file);
              InputStreamReader isr = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
             return deserializeClass(isr, clazz);
         }
     }
 
+    /**
+     * Deserialize an object instance using a class from a YAML file, but update
+     * the YAML file if it does not match the current config version.
+     * The class must have a {@link SerializableConfig} annotation and a default constructor.
+     * In order to check the version, the class must also have the {@link ConfigVersion} annotation.
+     * <br><br>
+     * <b>None of the arguments can be {@code null}.</b>
+     *
+     * @param file YAML file to read from.
+     * @param clazz Class to deserializer to.
+     * @param reserializer NodeSerializer instance to serialize the config if the config is out of date.
+     *
+     * @return an instance of the deserialized class.
+     * @param <T> Class type to deserialize to.
+     * @throws IOException if there is an error reading the file or writing to the file.
+     */
     public <T> T deserializeClassAndUpdate(File file, Class<T> clazz, NodeSerializer reserializer) throws IOException {
-        validateSerializable(clazz);
+        validateSerializable(Objects.requireNonNull(clazz));
         boolean reSaveConfig = false;
         T deserializedClass;
-        try (FileInputStream stream = new FileInputStream(file);
+        try (FileInputStream stream = new FileInputStream(Objects.requireNonNull(file));
              InputStreamReader isr = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
             Map<String, Object> objectMap = yaml.load(isr);
 
@@ -77,19 +132,54 @@ public class ClassDeserializer {
 
         if (reSaveConfig && deserializedClass != null) {
             ConfigNode serializedNode = ClassSerializer.serializeClass(deserializedClass);
-            reserializer.serializeToFile(file, serializedNode);
+            Objects.requireNonNull(reserializer).serializeToFile(file, serializedNode);
         }
 
         return deserializedClass;
     }
 
+
+    /**
+     * Deserialize a YAML input stream to a class.
+     * The class must have the {@link SerializableConfig} annotation,
+     * and a default constructor.
+     * <br><br>
+     * <b>None of the arguments can be {@code null}.</b>
+     *
+     * @param reader Reader to read YAML file from.
+     * @param clazz Class to deserialize to.
+     *
+     * @return the deserialized object instance.
+     *
+     * @param <T> Type to deserialize to.
+     */
     public <T> T deserializeClass(InputStreamReader reader, Class<T> clazz) {
+        Objects.requireNonNull(reader);
+        Objects.requireNonNull(clazz);
+
         validateSerializable(clazz);
         Map<String, Object> objectMap = yaml.load(reader);
         return deserializeClass(objectMap, clazz);
     }
 
+    /**
+     * Deserialize a YAML string to a class instance.
+     * The class must have the {@link SerializableConfig} annotation,
+     * and a default constructor.
+     * <br><br>
+     * <b>None of the arguments can be {@code null}.</b>
+     *
+     * @param producedYaml YAML string to use.
+     * @param clazz Class to deserialize to.
+     *
+     * @return the deserialized object instance.
+     *
+     * @param <T> Type to deserialize to.
+     */
     public <T> T deserializeClass(String producedYaml, Class<T> clazz) {
+        Objects.requireNonNull(producedYaml);
+        Objects.requireNonNull(clazz);
+
         validateSerializable(clazz);
         Map<String, Object> objectMap = yaml.load(producedYaml);
         return deserializeClass(objectMap, clazz);

@@ -17,7 +17,11 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
+/**
+ * Serialize to serialize the abstract node representation to actual YAML.
+ */
 public class NodeSerializer {
 
     private final CommentYAML yaml;
@@ -33,7 +37,17 @@ public class NodeSerializer {
         yaml.addSerializer(clazz, representer);
     }
 
+    /**
+     * Serialize a config node to a YAML string.
+     *
+     * @param node node to serialize.
+     *             The node <b>cannot</b> be {@code null}.
+     *
+     * @return serialized YAML string.
+     */
     public String serializeToString(ConfigNode node) {
+        Objects.requireNonNull(node);
+
         Map<CommentKey, Object> commentMap = new LinkedHashMap<>();
         serializeToCommentMap(node, commentMap);
         String dump = yaml.dump(commentMap);
@@ -55,7 +69,20 @@ public class NodeSerializer {
     }
 
 
+    /**
+     * Serialize a config node to a file.
+     * <br><br>
+     * <b>None of the arguments can be {@code null}.</b>
+     *
+     * @param file File to serialize to.
+     * @param node Node to serialize.
+     *
+     * @throws IOException if there's an error writing to the file.
+     */
     public void serializeToFile(File file, ConfigNode node) throws IOException {
+        Objects.requireNonNull(file);
+        Objects.requireNonNull(node);
+
         if (!file.exists()) {
             throw new FileNotFoundException("File does not exist!");
         }
