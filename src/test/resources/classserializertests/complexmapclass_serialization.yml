@@ -5,8 +5,8 @@ map:
     # This is a comment on option1!
     option1:
       TEST23: 3
-      TEST21: 1
       TEST22: 2
+      TEST21: 1
     # This is a comment on option2
     option2: World
   # Test root comment!
@@ -14,7 +14,7 @@ map:
     # This is a comment on option1!
     option1:
       TEST23: 3
-      TEST21: 1
       TEST22: 2
+      TEST21: 1
     # This is a comment on option2
     option2: World

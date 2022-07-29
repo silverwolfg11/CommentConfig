@@ -14,8 +14,12 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -97,22 +101,12 @@ public class FieldDeserializer {
             }
 
 
-            Collection<Object> deserializedList = null;
-            if (field != null) {
-                deserializedList = (Collection<Object>) getFieldInstance(field);
-            }
+            Collection<Object> deserializedList = (Collection<Object>) getDefaultObject(field, objectClass);
 
+            // Fast-fail
             if (deserializedList == null) {
-                deserializedList = (Collection<Object>) defaultConstructObject(objectClass);
-            }
-
-            // If no default constructor, then can't deserialize
-            if (deserializedList == null)
-                deserializedList = (Collection<Object>) createCommonInstancesOf(objectClass);
-
-            // Exhausted all options, fast-fail
-            if (deserializedList == null)
                 return serializedObj;
+            }
 
             // Make sure the deserialized list is empty
             deserializedList.clear();
@@ -138,19 +132,16 @@ public class FieldDeserializer {
             Class<?> valueClass = getClassFromType(valueType);
 
             if (!keyClass.isEnum() && keyClass.equals(String.class)) {
-                if (!valueClass.isAnnotationPresent(SerializableConfig.class)
-                        && !valueClass.isAssignableFrom(Iterable.class)) {
+                if (!isSpeciallyDeserialized(valueClass)) {
                     return serializedObj;
                 }
             }
 
-            Map<Object, Object> deserializedMap = null;
-            if (field != null) {
-                deserializedMap = (Map<Object, Object>) getFieldInstance(field);
+            Map<Object, Object> deserializedMap = (Map<Object, Object>) getDefaultObject(field, objectClass);
+            // Fast-fail
+            if (deserializedMap == null) {
+                return serializedObj;
             }
-
-            if (deserializedMap == null)
-                deserializedMap = new HashMap<>();
 
             deserializedMap.clear();
 
@@ -181,13 +172,37 @@ public class FieldDeserializer {
             }
 
             if (field != null && !objectClass.isInstance(serializedObj))  {
-                printError("Type mismatch on field '%s'!", field.getName());
-                printError("Expected field type: %s. Object type found: %s.", field.getType().getName(), serializedObj.getClass().getName());
+                printError("Error deserializing object from YAML for field '%s' in class '%s'", field.getName(), parentClass.getName());
+                printError("Expected field type: %s. Found deserialized type: %s.", field.getType().getName(), serializedObj.getClass().getName());
                 return null;
             }
         }
 
         return serializedObj;
+    }
+
+    private Object getDefaultObject(Field field, Class<?> clazz) {
+        Object defaultObj = null;
+        if (field != null) {
+            defaultObj = getFieldInstance(field);
+        }
+
+        if (defaultObj == null)
+            defaultObj = defaultConstructObject(clazz);
+
+        if (defaultObj == null)
+            defaultObj = createCommonInstancesOf(clazz);
+
+        // Exhausted all options so print an error
+        if (defaultObj == null) {
+            String errorMsg = String.format("Could not construct an object for class '%s'", clazz.getName());
+            if (field != null) {
+                errorMsg += " for field '" + field.getName() + "'!";
+            }
+            printError(errorMsg);
+        }
+
+        return defaultObj;
     }
 
     private Object getFieldInstance(Field field) {
@@ -253,12 +268,21 @@ public class FieldDeserializer {
     }
 
     // Create common instances of some iterable interfaces
-    private Collection<?> createCommonInstancesOf(Class<?> clazz) {
+    private Object createCommonInstancesOf(Class<?> clazz) {
         if (clazz == Collection.class || clazz == List.class) {
             return new ArrayList<>();
         }
         else if (clazz == Deque.class) {
             return new ArrayDeque<>();
+        }
+        else if (clazz == ConcurrentMap.class) {
+            return new ConcurrentHashMap<>();
+        }
+        else if (clazz == Map.class) {
+            return new HashMap<>();
+        }
+        else if (clazz == Set.class) {
+            return new HashSet<>();
         }
 
         return null;

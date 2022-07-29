@@ -193,6 +193,7 @@ public class ClassDeserializer {
             objInstance = constructor.newInstance();
             constructor.setAccessible(false);
         } catch (ReflectiveOperationException e) {
+            displayError("Error deserializing YAML. Could not construct an instance of class '" + clazz.getName() + "' from a default constructor!");
             e.printStackTrace();
             return null;
         }
