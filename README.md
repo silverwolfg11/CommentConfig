@@ -1,6 +1,6 @@
 # CommentConfig
 [![](https://jitpack.io/v/silverwolfg11/CommentConfig.svg)](https://jitpack.io/#silverwolfg11/CommentConfig)
-[![](https://img.shields.io/badge/%20Javadoc-1.1.0%20-informational)](https://jitpack.io/#silverwolfg11/CommentConfig/javadoc)
+[![](https://img.shields.io/badge/%20Javadoc-1.1.0%20-informational)](https://javadoc.jitpack.io/com/github/silverwolfg11/CommentConfig/v1.1.0/javadoc/)
 
 A project that utilizes SnakeYAML and offers the ability to save comments to a YAML file.
 
